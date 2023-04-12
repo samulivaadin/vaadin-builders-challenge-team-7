@@ -25,6 +25,7 @@ import org.vaadin.builderchallenge.data.entity.User;
 import org.vaadin.builderchallenge.security.AuthenticatedUser;
 import org.vaadin.builderchallenge.views.admin.AdminView;
 import org.vaadin.builderchallenge.views.remoteparticipation.RemoteParticipationView;
+import org.vaadin.builderchallenge.views.townhall.TownhallQuestionsView;
 import org.vaadin.lineawesome.LineAwesomeIcon;
 
 /**
@@ -74,6 +75,11 @@ public class MainLayout extends AppLayout {
         if (accessChecker.hasAccess(RemoteParticipationView.class)) {
             nav.addItem(new AppNavItem("Remote Participation", RemoteParticipationView.class,
                     LineAwesomeIcon.YOUTUBE.create()));
+
+        }
+        if (accessChecker.hasAccess(TownhallQuestionsView.class)) {
+            nav.addItem(new AppNavItem("Townhall Questions", TownhallQuestionsView.class,
+                    LineAwesomeIcon.COMMENT.create()));
 
         }
         if (accessChecker.hasAccess(AdminView.class)) {

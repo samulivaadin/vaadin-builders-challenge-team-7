@@ -1,1 +1,15 @@
 @import url('./main-layout.css');
+
+.v-dragged.card {
+    outline: 1px dotted hotpink;
+    opacity: 0.5;
+}
+
+.v-drag-over-target {
+    background-color: #A6C7ED !important;
+    /*border: #A6C7ED 1px solid;*/
+}
+
+.droppable-border {
+    border: 1px solid darkgray;
+}
