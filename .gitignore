@@ -2,3 +2,4 @@
 /target/
 /frontend/index.html
 /frontend/generated/
+/node_modules
