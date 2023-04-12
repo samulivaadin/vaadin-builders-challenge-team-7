@@ -1,9 +1,6 @@
 package org.vaadin.builderchallenge.views.remoteparticipation;
 
-import com.vaadin.flow.component.AttachEvent;
-import com.vaadin.flow.component.ClientCallable;
-import com.vaadin.flow.component.HtmlComponent;
-import com.vaadin.flow.component.Tag;
+import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.dialog.DialogVariant;
 import com.vaadin.flow.component.map.Map;
@@ -11,24 +8,31 @@ import com.vaadin.flow.component.map.configuration.Coordinate;
 import com.vaadin.flow.component.map.configuration.feature.MarkerFeature;
 import com.vaadin.flow.component.map.configuration.geometry.Point;
 import com.vaadin.flow.component.map.configuration.style.Icon;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteAlias;
 import com.vaadin.flow.server.StreamResource;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
+import com.vaadin.flow.theme.lumo.LumoUtility;
+import org.vaadin.builderchallenge.components.webrtc.StreamViewer;
+import org.vaadin.builderchallenge.components.webrtc.VideoInputSelector;
+import org.vaadin.builderchallenge.components.webrtc.WebRTCSessionManager;
+import org.vaadin.builderchallenge.components.webrtc.WebRTCSupport;
 import org.vaadin.builderchallenge.views.MainLayout;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 @PageTitle("Remote Participation")
 @Route(value = "remote", layout = MainLayout.class)
 @RouteAlias(value = "", layout = MainLayout.class)
 @AnonymousAllowed
-public class RemoteParticipationView extends VerticalLayout {
+public class RemoteParticipationView extends HorizontalLayout {
 
     public static final String TESTING_STREAM1 = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
     public static final String TESTING_STREAM2 = "https://archive.org/download/Popeye_forPresident/Popeye_forPresident_512kb.mp4";
@@ -36,12 +40,52 @@ public class RemoteParticipationView extends VerticalLayout {
     private static final Logger log = Logger.getLogger(RemoteParticipationView.class.getName());
 
     private final Map map;
+    private final WebRTCSupport webRTCSupport;
+    private final StreamViewer selfCamera;
 
     //Mapping of Coordinates and stream addresses
     private final HashMap<Coordinate, String> coordinateStreams = new HashMap<>();
 
-    public RemoteParticipationView() {
-        setSpacing(false);
+    public RemoteParticipationView(WebRTCSessionManager webRTCSessionManager) {
+        setPadding(true);
+        setSpacing(true);
+
+        webRTCSupport = new WebRTCSupport(webRTCSessionManager);
+
+        selfCamera = new StreamViewer();
+        selfCamera.setWidthFull();
+        selfCamera.addClassName(LumoUtility.Border.ALL);
+        selfCamera.addClassName(LumoUtility.BorderColor.CONTRAST_5);
+        selfCamera.addClassName(LumoUtility.BorderRadius.SMALL);
+
+        webRTCSupport.setSelfVideo(selfCamera);
+
+        var sideBar = new VerticalLayout();
+        sideBar.setWidth("400px");
+        sideBar.setHeightFull();
+        sideBar.setSpacing(false);
+        sideBar.setPadding(false);
+        add(sideBar);
+
+        sideBar.add(webRTCSupport);
+        sideBar.add(selfCamera);
+
+        webRTCSupport.setRemoteStreamAddedHandler(sessionId -> {
+            var viewer = new StreamViewer();
+            viewer.setWidthFull();
+            viewer.addClassName(LumoUtility.Border.ALL);
+            viewer.addClassName(LumoUtility.BorderColor.CONTRAST_5);
+            viewer.addClassName(LumoUtility.BorderRadius.SMALL);
+            sideBar.add(viewer);
+            return viewer;
+        });
+        webRTCSupport.setRemoteStreamRemovedHandler((sessionId, streamViewer) -> streamViewer.removeFromParent());
+
+        var cameraSelector = new VideoInputSelector();
+        cameraSelector.setWebRTCSupport(webRTCSupport);
+        cameraSelector.setTooltipText("Camera");
+        cameraSelector.setWidthFull();
+        sideBar.add(cameraSelector);
 
         map = new Map();
         var vaadinHqCoordinates = new Coordinate(22.29985, 60.45234);
@@ -62,7 +106,6 @@ public class RemoteParticipationView extends VerticalLayout {
                     ev.getMouseDetails().getAbsoluteY())
             );
             var dialog = new Dialog();
-            var video = new AutoplayVideo(coordinateStreams.get(coord.getCoordinates()));
             dialog.addThemeName(DialogVariant.LUMO_NO_PADDING.getVariantName());
 
             //Still not possible to do this in a nice way https://github.com/vaadin/flow-components/issues/1173
@@ -71,14 +114,16 @@ public class RemoteParticipationView extends VerticalLayout {
             dialog.getElement().executeJs("this.$.overlay.$.overlay.style[$0]=$1", "left", ev.getMouseDetails().getAbsoluteX() - 200 + "px");
             dialog.getElement().executeJs("this.$.overlay.$.overlay.style[$0]=$1", "top", ev.getMouseDetails().getAbsoluteY() - 115 + "px");
 
+            var video = new AutoplayVideo(coordinateStreams.get(coord.getCoordinates()));
             dialog.add(video);
             dialog.open();
         });
+        map.setSizeFull();
         add(map);
 
         setSizeFull();
         setJustifyContentMode(JustifyContentMode.CENTER);
-        setDefaultHorizontalComponentAlignment(Alignment.CENTER);
+        setDefaultVerticalComponentAlignment(Alignment.CENTER);
         getStyle().set("text-align", "center");
     }
 
