@@ -16,6 +16,12 @@ public class Vote {
 		}
 	}
 
+	// Jackson converter cannot instantiate instance without finding a default constructor. There we go
+	public Vote() {
+		this.originatorName = null;
+		this.value = null;
+	}
+
 	public Vote(String originatorName, Value value) {
 		this.originatorName = originatorName;
 		this.value = value;

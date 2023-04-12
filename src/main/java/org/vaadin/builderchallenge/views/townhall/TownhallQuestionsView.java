@@ -1,14 +1,18 @@
 package org.vaadin.builderchallenge.views.townhall;
 
 import com.vaadin.collaborationengine.*;
+import com.vaadin.flow.component.Key;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Label;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteAlias;
 import jakarta.annotation.security.RolesAllowed;
 import lombok.Data;
+import org.apache.commons.lang3.StringUtils;
 import org.vaadin.builderchallenge.data.entity.User;
 import org.vaadin.builderchallenge.data.pseudoentity.townhall.Question;
 import org.vaadin.builderchallenge.security.AuthenticatedUser;
@@ -32,7 +36,6 @@ public class TownhallQuestionsView extends VerticalLayout {
 
 	public TownhallQuestionsView(AuthenticatedUser authenticatedUser) {
 		this.authenticatedUser = authenticatedUser;
-//		setSpacing(false);
 
 		var auth = this.authenticatedUser.get();
 		var localUser = new UserInfo(
@@ -43,7 +46,10 @@ public class TownhallQuestionsView extends VerticalLayout {
 		var avatarGroup = new CollaborationAvatarGroup(localUser, "map");
 		add(avatarGroup);
 
-		QuestionsField questionsField = new QuestionsField();
+		QuestionsField questionsField = new QuestionsField(localUser, (question, vote) -> {
+			question.removeVote(vote);
+			reorderList(question);
+		});
 		questionsField.setSizeFull();
 
 		CollaborationEngine.getInstance().openTopicConnection(this, "townhall",
@@ -55,22 +61,32 @@ public class TownhallQuestionsView extends VerticalLayout {
 				});
 
 		add(new Label("Vote by dropping a question:"));
-		VotingDrop votingDrop = new VotingDrop((question, value) -> {
-			question.setVote(auth.get().getName(), value);
+		VotingDrop votingDrop = new VotingDrop(localUser, (question, value) -> {
+			question.setVote(localUser, value);
 			reorderList(question);
 		});
 
-		var tfield = new TextField();
-		tfield.addValueChangeListener(event -> {
-			Question newQuestion = new Question(auth.get().getName(), event.getValue());
-			ListOperationResult<Void> result = questions.insertLast(newQuestion);
-			questionMap.put(newQuestion, result.getKey());
-			result.getCompletableFuture().thenAccept(v ->
-					questionsField.setPresentationValue(questions.getItems(Question.class))
-			);
+		var textInput = new TextArea("Enter Your Question:");
+		textInput.setWidthFull();
+		textInput.addValueChangeListener(event -> {
+			String message = textInput.getValue();
+			if (StringUtils.isNotEmpty(message)) {
+				Question newQuestion = new Question(localUser, textInput.getValue());
+				ListOperationResult<Void> result = questions.insertLast(newQuestion);
+				questionMap.put(newQuestion, result.getKey());
+				result.getCompletableFuture().thenAccept(v ->
+						questionsField.setPresentationValue(questions.getItems(Question.class))
+				);
+				textInput.setValue("");
+			}
 		});
 
-		add(votingDrop, questionsField, tfield);
+		Button submit = new Button("Submit", event -> {
+			textInput.blur();
+		});
+		submit.addClickShortcut(Key.ENTER);
+
+		add(votingDrop, questionsField, textInput, submit);
 
 		setSizeFull();
 		setJustifyContentMode(JustifyContentMode.CENTER);
@@ -96,32 +112,11 @@ public class TownhallQuestionsView extends VerticalLayout {
 			questionMap.put(trigger, newKey);
 		});
 
-//		List<Question> list = questions.getItems(Question.class);
-//		list.stream().filter(question -> question.getScore() < newScore)
-//				.map(question -> questionMap.get(question))
-//				.findFirst().ifPresent(listKey -> {
-//					questions.insertBefore(listKey, trigger).getCompletableFuture().thenAccept(aBoolean -> questions.remove(questionMap.get(trigger)));
-////					questions.remove(questionMap.get(trigger));
-////					CompletableFuture<Boolean> result = questions.remove(questionMap.get(trigger));
-////					result.thenAccept(aBoolean -> questions.insertBefore(listKey, trigger));
-//				});
-
 	}
+
 	@Data
 	public static class Questions {
 		private List<Question> list = new ArrayList<>();
-	}
-
-	public static class Bean {
-		String value;
-
-		public String getValue() {
-			return value;
-		}
-
-		public void setValue(String value) {
-			this.value = value;
-		}
 	}
 
 }

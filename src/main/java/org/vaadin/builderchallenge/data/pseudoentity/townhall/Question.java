@@ -1,5 +1,6 @@
 package org.vaadin.builderchallenge.data.pseudoentity.townhall;
 
+import com.vaadin.collaborationengine.UserInfo;
 import lombok.Setter;
 import org.vaadin.builderchallenge.data.entity.User;
 
@@ -15,25 +16,25 @@ import lombok.Getter;
 public class Question {
 	private static int lastId = 0;
 	private final Integer id;
-	private final String authorName;
+	private final UserInfo authorInfo;
 	private final String message;
-	private final Map<String, Vote.Value> votes = new HashMap<>();
+	private final Map<String, Vote> votes = new HashMap<>();
 
 	// Jackson converter cannot instantiate instance without finding a default constructor. There we go
 	public Question() {
 		id = null;
-		authorName = null;
+		authorInfo = null;
 		message = null;
 	}
-	public Question(String authorName, String message) {
+	public Question(UserInfo authorInfo, String message) {
 		this.id = ++lastId;
-		this.authorName = authorName;
+		this.authorInfo = authorInfo;
 		this.message = message;
 	}
 
-	public void setVote(String originatorName, Vote.Value value) {
+	public void setVote(UserInfo originator, Vote value) {
 		if (value != null) {
-			votes.put(originatorName, value);
+			votes.put(originator.getId(), value);
 		}
 	}
 
@@ -51,10 +52,14 @@ public class Question {
 	}
 
 	public int getScore() {
-		return votes.values().stream().map(value -> value.getIntVal()).reduce(Integer::sum).orElse(0);
+		return votes.values().stream().map(value -> value.getValue().getIntVal()).reduce(Integer::sum).orElse(0);
 	}
 
 	void setScore(int score) {
 		// didn't find how to configure jackson's ObjectMapper to ignore 'score'
+	}
+
+	public void removeVote(Vote vote) {
+		votes.remove(vote.getOriginatorName());
 	}
 }
