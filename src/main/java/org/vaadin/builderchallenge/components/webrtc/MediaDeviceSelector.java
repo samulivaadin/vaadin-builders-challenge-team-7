@@ -2,14 +2,16 @@ package org.vaadin.builderchallenge.components.webrtc;
 
 import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.HasLabel;
+import com.vaadin.flow.component.HasSize;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.shared.HasTooltip;
 import com.vaadin.flow.shared.Registration;
 
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
 
-public abstract class MediaDeviceSelector extends Composite<ComboBox<MediaDevice>> implements HasLabel {
+public abstract class MediaDeviceSelector extends Composite<ComboBox<MediaDevice>> implements HasLabel, HasSize, HasTooltip {
 
     private final MediaDeviceKind kind;
     private WebRTCSupport webRTCSupport;
