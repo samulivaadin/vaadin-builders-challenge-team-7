@@ -55,6 +55,13 @@ public class RemoteParticipationView extends VerticalLayout {
             var dialog = new Dialog();
             var video = new AutoplayVideo("https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4");
             dialog.addThemeName(DialogVariant.LUMO_NO_PADDING.getVariantName());
+
+            //Still not possible to do this in a nice way https://github.com/vaadin/flow-components/issues/1173
+            dialog.getElement().executeJs("this.$.overlay.$.overlay.style[$0]=$1", "align-self", "flex-start");
+            dialog.getElement().executeJs("this.$.overlay.$.overlay.style[$0]=$1", "position", "absolute");
+            dialog.getElement().executeJs("this.$.overlay.$.overlay.style[$0]=$1", "left", ev.getMouseDetails().getAbsoluteX()-200 + "px");
+            dialog.getElement().executeJs("this.$.overlay.$.overlay.style[$0]=$1", "top", ev.getMouseDetails().getAbsoluteY()-115 + "px");
+
             dialog.add(video);
             dialog.open();
         });
