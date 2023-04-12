@@ -1,6 +1,7 @@
 package org.vaadin.builderchallenge;
 
 import com.vaadin.flow.component.page.AppShellConfigurator;
+import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.theme.Theme;
 import javax.sql.DataSource;
 import org.springframework.boot.SpringApplication;
@@ -18,6 +19,7 @@ import org.vaadin.builderchallenge.data.service.UserRepository;
  *
  */
 @SpringBootApplication
+@Push
 @Theme(value = "team7")
 public class Application implements AppShellConfigurator {
 
