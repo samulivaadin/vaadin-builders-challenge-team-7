@@ -26,6 +26,7 @@ public class WebRTCSupport extends Component implements WebRTCSession {
     private RemoteStreamAddedHandler remoteStreamAddedHandler;
     private RemoteStreamRemovedHandler remoteStreamRemovedHandler;
     private final Map<UUID, StreamViewer> remoteVideo = new HashMap<>();
+    private final Map<String, Object> attributes = new HashMap<>();
 
     public WebRTCSupport(WebRTCSessionManager webRTCSessionManager) {
         this.webRTCSessionManager = requireNonNull(webRTCSessionManager, "webRTCSessionManager must not be null");
@@ -35,6 +36,10 @@ public class WebRTCSupport extends Component implements WebRTCSession {
     public void setSelfVideo(StreamViewer selfVideo) {
         Objects.requireNonNull(selfVideo, "selfVideo must not be null");
         getElement().callJsFunction("showSelfVideo", selfVideo.getElement());
+    }
+
+    public Optional<StreamViewer> getRemoteVideo(UUID sessionId) {
+        return Optional.ofNullable(remoteVideo.get(sessionId));
     }
 
     public void setRemoteStreamAddedHandler(RemoteStreamAddedHandler remoteStreamAddedHandler) {
@@ -88,10 +93,15 @@ public class WebRTCSupport extends Component implements WebRTCSession {
         var id = UUID.fromString(sessionId);
         var viewer = remoteVideo.get(id);
         if (viewer == null && remoteStreamAddedHandler != null) {
-            viewer = remoteStreamAddedHandler.onRemoteStreamAdded(id);
-            remoteVideo.put(id, viewer);
-        }
-        if (viewer != null) {
+            var newViewer = remoteStreamAddedHandler.onRemoteStreamAdded(id);
+            remoteVideo.put(id, newViewer);
+            newViewer.addAttachListener(event -> { // TODO Clean up attach listener
+                getElement().callJsFunction("showRemoteStream", sessionId, newViewer.getElement()).then(
+                        result -> log.trace("{} is showing remote stream {}", this, sessionId),
+                        error -> log.trace("{} got an error showing remote stream {}: {}", this, sessionId, error)
+                );
+            });
+        } else if (viewer != null && viewer.isAttached()) {
             getElement().callJsFunction("showRemoteStream", sessionId, viewer.getElement()).then(
                     result -> log.trace("{} is showing remote stream {}", this, sessionId),
                     error -> log.trace("{} got an error showing remote stream {}: {}", this, sessionId, error)
@@ -212,6 +222,21 @@ public class WebRTCSupport extends Component implements WebRTCSession {
     @FunctionalInterface
     public interface RemoteStreamRemovedHandler extends Serializable {
         void onRemoteStreamRemoved(UUID sessionId, StreamViewer streamViewer);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T getAttribute(String name, T defaultValue) {
+        synchronized (attributes) {
+            return (T) attributes.getOrDefault(name, defaultValue);
+        }
+    }
+
+    @Override
+    public void setAttribute(String name, Object value) {
+        synchronized (attributes) {
+            attributes.put(name, value);
+        }
     }
 
     @Override

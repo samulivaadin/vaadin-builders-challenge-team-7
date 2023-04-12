@@ -1,10 +1,12 @@
 package org.vaadin.builderchallenge.views.remoteparticipation;
 
 import com.vaadin.flow.component.*;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.dialog.DialogVariant;
 import com.vaadin.flow.component.map.Map;
 import com.vaadin.flow.component.map.configuration.Coordinate;
+import com.vaadin.flow.component.map.configuration.Feature;
 import com.vaadin.flow.component.map.configuration.feature.MarkerFeature;
 import com.vaadin.flow.component.map.configuration.geometry.Point;
 import com.vaadin.flow.component.map.configuration.style.Icon;
@@ -16,17 +18,14 @@ import com.vaadin.flow.router.RouteAlias;
 import com.vaadin.flow.server.StreamResource;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
 import com.vaadin.flow.theme.lumo.LumoUtility;
-import org.vaadin.builderchallenge.components.webrtc.StreamViewer;
-import org.vaadin.builderchallenge.components.webrtc.VideoInputSelector;
-import org.vaadin.builderchallenge.components.webrtc.WebRTCSessionManager;
-import org.vaadin.builderchallenge.components.webrtc.WebRTCSupport;
+import org.vaadin.builderchallenge.components.webrtc.*;
 import org.vaadin.builderchallenge.views.MainLayout;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-import java.util.UUID;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 @PageTitle("Remote Participation")
 @Route(value = "remote", layout = MainLayout.class)
@@ -68,15 +67,20 @@ public class RemoteParticipationView extends HorizontalLayout {
         add(sideBar);
 
         sideBar.add(webRTCSupport);
+
+        var location = new ComboBox<Location>();
+        location.setItems(Location.values());
+        location.setWidthFull();
+        location.addValueChangeListener(event -> webRTCSupport.setAttribute(Location.class, event.getValue()));
+        sideBar.add(location);
+
         sideBar.add(selfCamera);
 
         webRTCSupport.setRemoteStreamAddedHandler(sessionId -> {
             var viewer = new StreamViewer();
-            viewer.setWidthFull();
             viewer.addClassName(LumoUtility.Border.ALL);
             viewer.addClassName(LumoUtility.BorderColor.CONTRAST_5);
             viewer.addClassName(LumoUtility.BorderRadius.SMALL);
-            sideBar.add(viewer);
             return viewer;
         });
         webRTCSupport.setRemoteStreamRemovedHandler((sessionId, streamViewer) -> streamViewer.removeFromParent());
@@ -95,28 +99,32 @@ public class RemoteParticipationView extends HorizontalLayout {
         coordinateStreams.put(germanOfficeCoordinates, TESTING_STREAM1);
         coordinateStreams.put(usOfficeCoordinates, TESTING_STREAM1);
 
-        map.getFeatureLayer().addFeature(getVideoMarkerForCoordinate(vaadinHqCoordinates));
-        map.getFeatureLayer().addFeature(getVideoMarkerForCoordinate(germanOfficeCoordinates));
-        map.getFeatureLayer().addFeature(getVideoMarkerForCoordinate(usOfficeCoordinates));
+        Stream.of(Location.values()).forEach(l -> {
+            map.getFeatureLayer().addFeature(addVideoMarkerForLocation(l));
+        });
         map.addFeatureClickListener(ev -> {
-            var coord = (Point) ev.getFeature().getGeometry();
-            log.info(String.format("Coordinates of clicked marker %s and x,y position of mouse %d, %d",
-                    coord.getCoordinates().toString(),
-                    ev.getMouseDetails().getAbsoluteX(),
-                    ev.getMouseDetails().getAbsoluteY())
-            );
-            var dialog = new Dialog();
-            dialog.addThemeName(DialogVariant.LUMO_NO_PADDING.getVariantName());
+            var clickedLocation = featureLocationMap.get(ev.getFeature());
+            if (clickedLocation != null) {
+                webRTCSessionManager
+                        .findSession(session -> clickedLocation.equals(session.getAttribute(Location.class, null)))
+                        .map(WebRTCSession::id)
+                        .flatMap(webRTCSupport::getRemoteVideo)
+                        .ifPresent(viewer -> {
+                            var dialog = new Dialog();
+                            dialog.addThemeName(DialogVariant.LUMO_NO_PADDING.getVariantName());
 
-            //Still not possible to do this in a nice way https://github.com/vaadin/flow-components/issues/1173
-            dialog.getElement().executeJs("this.$.overlay.$.overlay.style[$0]=$1", "align-self", "flex-start");
-            dialog.getElement().executeJs("this.$.overlay.$.overlay.style[$0]=$1", "position", "absolute");
-            dialog.getElement().executeJs("this.$.overlay.$.overlay.style[$0]=$1", "left", ev.getMouseDetails().getAbsoluteX() - 200 + "px");
-            dialog.getElement().executeJs("this.$.overlay.$.overlay.style[$0]=$1", "top", ev.getMouseDetails().getAbsoluteY() - 115 + "px");
+                            //Still not possible to do this in a nice way https://github.com/vaadin/flow-components/issues/1173
+                            dialog.getElement().executeJs("this.$.overlay.$.overlay.style[$0]=$1", "align-self", "flex-start");
+                            dialog.getElement().executeJs("this.$.overlay.$.overlay.style[$0]=$1", "position", "absolute");
+                            dialog.getElement().executeJs("this.$.overlay.$.overlay.style[$0]=$1", "left", ev.getMouseDetails().getAbsoluteX() - 200 + "px");
+                            dialog.getElement().executeJs("this.$.overlay.$.overlay.style[$0]=$1", "top", ev.getMouseDetails().getAbsoluteY() - 115 + "px");
 
-            var video = new AutoplayVideo(coordinateStreams.get(coord.getCoordinates()));
-            dialog.add(video);
-            dialog.open();
+                            dialog.add(viewer);
+                            viewer.setWidthFull();
+                            dialog.setWidth("500px");
+                            dialog.open();
+                        });
+            }
         });
         map.setSizeFull();
         add(map);
@@ -148,15 +156,14 @@ public class RemoteParticipationView extends HorizontalLayout {
         map.getFeatureLayer().addFeature(getVideoMarkerForCoordinate(userCoordinates));
     }
 
-    @Tag("video")
-    public static class AutoplayVideo extends HtmlComponent {
-        public AutoplayVideo(String src) {
-            getElement().setAttribute("src", src);
-            getElement().setAttribute("autoplay", true);
-            getElement().setAttribute("loop", true);
-            getElement().setAttribute("width", "400px");
-            getElement().setAttribute("height", "230px");
-        }
+    private final java.util.Map<Feature, Location> featureLocationMap = new HashMap<>();
+
+    private MarkerFeature addVideoMarkerForLocation(Location location) {
+        var opts = new Icon.Options();
+        opts.setImg(getVideoStream(coordinateStreams.get(location.getCoordinate())));
+        var marker = new MarkerFeature(location.getCoordinate(), new Icon(opts));
+        featureLocationMap.put(marker, location);
+        return marker;
     }
 
     private MarkerFeature getVideoMarkerForCoordinate(Coordinate coordinate) {

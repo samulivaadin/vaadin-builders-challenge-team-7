@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.function.Predicate;
 
 @Service
 public class WebRTCSessionManager {
@@ -50,9 +51,21 @@ public class WebRTCSessionManager {
         getSession(recipient).ifPresent(s -> s.handleInvitation(source, message));
     }
 
-    private Optional<WebRTCSession> getSession(UUID id) {
+    public Optional<WebRTCSession> getSession(UUID id) {
         synchronized (this) {
             return Optional.ofNullable(sessions.get(id));
+        }
+    }
+
+    public Optional<WebRTCSession> findSession(Predicate<? super WebRTCSession> predicate) {
+        synchronized (this) {
+            return sessions.values().stream().filter(predicate).findFirst();
+        }
+    }
+
+    public Set<UUID> sessionIds() {
+        synchronized (this) {
+            return Set.copyOf(sessions.keySet());
         }
     }
 
