@@ -8,11 +8,11 @@ import org.vaadin.lineawesome.LineAwesomeIcon;
 
 @Getter
 public class VoteComponent extends HorizontalLayout {
-	private final Vote.Value value;
+	private final Vote value;
 
-	public VoteComponent(Vote.Value value) {
+	public VoteComponent(Vote value) {
 		this.value = value;
-		for (int i = 1; i <= value.getIntVal(); i++) {
+		for (int i = 1; i <= value.getValue().getIntVal(); i++) {
 			Component star = LineAwesomeIcon.STAR.create();
 			add(star);
 		}
