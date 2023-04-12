@@ -35,6 +35,7 @@ public class QuestionComponent extends HorizontalLayout {
 					.findFirst().ifPresent(vote -> {
 						Component trash = LineAwesomeIcon.TRASH_ALT.create();
 						Button delete = new Button(trash, event -> voteRemover.accept(question, vote));
+						delete.setTooltipText("Delete my vote");
 						add(delete);
 					});
 

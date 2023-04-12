@@ -70,7 +70,11 @@ public class QuestionsField extends CustomField<List<Question>> {
 				rowMap.put(score, newRow);
 			}
 		} else {
-			row.add(cell);
+			try {
+				row.add(cell);
+			} catch (IllegalArgumentException e) {
+				System.err.println(e.getMessage());
+			}
 		}
 		Component forBorder = cell.getDragComponent();
 		String className = null;
