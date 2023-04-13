@@ -82,20 +82,16 @@ public class QuestionsField extends CustomField<List<Question>> {
 		if (score > 0) {
 			switch (rowMap.size()) {
 				case 1:
-					className = "gold-voted";
+					forBorder.addClassName("gold-voted");
 					break;
 				case 2:
-					className = "silver-voted";
+					forBorder.addClassName("silver-voted");
 					break;
 				case 3:
-					className = "bronce-voted";
+					forBorder.addClassName("bronce-voted");
 					break;
 				default:
 					return;
-			}
-			if (StringUtils.isNotEmpty(className)) {
-				forBorder.getClassNames().remove("rcorners");
-				forBorder.addClassName(className);
 			}
 		}
 	}
